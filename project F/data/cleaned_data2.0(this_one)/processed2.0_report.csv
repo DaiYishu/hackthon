@@ -1,0 +1,15 @@
+asset_id,asset_class,total_rows,n_abnormal_gaps,n_price_violations,n_duplicated_timestamps,n_missing_values
+BTCUSD,crypto,2000,1,0,0,1
+ETHUSD,crypto,2000,1,0,0,1
+SOLUSD,crypto,2000,1,0,0,1
+EURUSD,forex,2000,1,0,0,1
+USDJPY,forex,2000,1,0,0,1
+^DJI,index,1872,23,0,0,1
+^FCHI,index,2000,19,0,0,1
+^GSPC,index,1872,23,0,0,1
+^IXIC,index,1872,23,0,0,1
+^NDX,index,4332,55,0,0,1
+AAPL,stock,1919,9,0,0,1
+GOOG,stock,1920,9,0,0,1
+MC.PA,stock,2000,19,0,0,1
+NVDA,stock,1920,9,0,0,1

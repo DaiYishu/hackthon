@@ -1,0 +1,203 @@
+Étape 1 — Préparation et exploration du nouveau jeu de données
+
+Dans cette première étape, nous utilisons un jeu de données pré-concaténé contenant des séries temporelles financières intraday à une fréquence de 5 minutes pour un nombre restreint d’actifs appartenant à différentes classes de marché : cryptomonnaies, forex, indices et actions.
+
+Les données sont d’abord chargées et structurées en un DataFrame unique, puis triées selon les variables (asset_id, date) après conversion du temps au format datetime. Une variable supplémentaire asset_class est créée afin d’identifier la nature de chaque actif (crypto, forex, index ou stock), ce qui permettra d’analyser ultérieurement les différences de comportement entre marchés.
+
+Des contrôles de qualité de base sont ensuite réalisés, incluant la détection de doublons, la vérification des valeurs manquantes, ainsi que la cohérence des prix (high ≥ low, open/close compris dans l’intervalle). Ces vérifications visent uniquement à identifier d’éventuelles anomalies sans altérer la structure des données.
+
+Une attention particulière est portée à la structure temporelle des séries. Les écarts entre observations consécutives (time gaps) sont calculés pour chaque actif afin de caractériser les interruptions de cotation. Conformément aux spécificités des marchés financiers, ces discontinuités sont conservées : aucune interpolation ni remplissage n’est effectué. En effet, les écarts temporels (notamment les fermetures quotidiennes des marchés pour les indices et actions, ou les week-ends sur le forex) constituent une information pertinente pour l’analyse.
+
+Le jeu de données ainsi préparé conserve donc la structure réelle des marchés, incluant les différences de cotation entre actifs (cotation continue pour les cryptomonnaies, discontinuités pour les autres classes), et servira de base pour la construction des indicateurs et des modèles de prévision dans les étapes suivantes.
+
+
+
+--------------------------
+Analyse des intervalles temporels (time_gap)
+
+Après l’analyse du fichier gap_summary_by_asset, nous avons examiné la distribution des intervalles de temps entre deux observations consécutives pour chaque actif.
+
+Cas normaux (structure de marché respectée)
+
+Pour la majorité des actifs, nous observons que :
+
+La très grande majorité des observations ont un intervalle de 5 minutes, ce qui correspond à la fréquence attendue.
+Les intervalles plus longs correspondent à des phénomènes normaux de marché :
+Actions et indices (AAPL, GOOG, NVDA, ^GSPC, etc.) :
+intervalles d’environ 8h–17h → fermeture quotidienne du marché (overnight)
+intervalles de 2 à 3 jours → week-end ou jours fériés
+Forex (EURUSD, USDJPY) :
+principalement des intervalles de 5 minutes
+quelques grands intervalles correspondant aux fermetures du week-end
+Crypto (BTCUSD, ETHUSD, SOLUSD) :
+quasi exclusivement des intervalles de 5 minutes (marché 24/7)
+très rares anomalies (isolées)
+
+ Ces comportements sont cohérents avec la structure réelle des marchés et ne nécessitent pas de traitement particulier (sauf éventuellement exclusion dans certains modèles).
+
+ Cas à surveiller (anomalies ponctuelles)
+
+Certains actifs présentent un nombre très limité d’intervalles intermédiaires (par exemple 10 minutes) :
+
+Exemple : AAPL (un cas isolé de 10 minutes)
+
+ Ces cas sont rares et probablement dus à des manques de données ponctuels.
+Ils peuvent être :
+
+soit supprimés,
+soit ignorés sans impact significatif sur le modèle.
+Cas problématique : USDCNY
+
+L’actif USDCNY présente un comportement très différent :
+
+seulement ~82% des intervalles sont de 5 minutes
+environ 17.8% des intervalles sont supérieurs à 5 minutes
+présence de nombreux intervalles intermédiaires :
+10 min, 15 min, 20 min, 25 min, 30 min, etc.
+
+Contrairement aux autres actifs :
+
+ces intervalles ne correspondent pas à des fermetures de marché
+ils indiquent une irrégularité structurelle des données (données manquantes ou mal échantillonnées)
+ Décision de prétraitement
+
+Compte tenu de cette analyse :
+
+Nous conservons les actifs dont la structure temporelle est cohérente
+Nous tolérons les anomalies très rares (impact négligeable)
+Nous décidons de supprimer complètement l’actif USDCNY
+
+Cette décision permet de garantir :
+
+la cohérence temporelle des séries
+la validité des hypothèses de modélisation en séries temporelles
+une meilleure stabilité des modèles
+--------------------
+Conclusion sur la qualité des données
+L’analyse du rapport de qualité montre que le dataset est globalement très propre et cohérent.
+Aucune anomalie structurelle n’a été détectée : il n’existe ni doublons, ni valeurs manquantes, ni erreurs dans les dates ou dans les variables OHLC. De plus, aucune incohérence n’a été observée concernant les volumes ou les identifiants d’actifs.
+Ainsi, du point de vue de la qualité intrinsèque des données, le dataset peut être considéré comme fiable et directement exploitable.
+Cependant, l’analyse des intervalles temporels (time_gap) met en évidence que certains actifs présentent des irrégularités dans la continuité temporelle. En particulier, l’actif USDCNY montre une proportion importante d’intervalles non conformes à la fréquence attendue de 5 minutes, ce qui suggère des problèmes de structure temporelle plutôt que de qualité des valeurs.
+Par conséquent, notre stratégie consiste à :
+conserver les actifs présentant une structure temporelle cohérente,
+tolérer les irrégularités rares,
+et exclure les actifs présentant des anomalies significatives, comme USDCNY.
+En conclusion, les données sont de haute qualité du point de vue des valeurs, et les traitements nécessaires concernent principalement la gestion de la structure temporelle afin de garantir la validité des modèles de séries temporelles.
+-------------------
+À l’issue de l’analyse exploratoire du jeu de données, il a été constaté que l’actif USDCNY présentait des anomalies importantes affectant la cohérence des séries temporelles. Cet actif a donc été exclu de l’étude afin de garantir la fiabilité des analyses ultérieures.
+Sur le jeu de données restant, une procédure de validation automatique légère a été mise en place afin de vérifier la qualité des données sans altérer leur structure. Cette validation comprend les contrôles suivants :
+Vérification de la continuité temporelle au sein de chaque actif
+Détection des écarts temporels anormaux (gaps)
+Contrôle de la cohérence des prix (high ≥ low, open/close compris dans l’intervalle)
+Détection des valeurs manquantes
+Identification des timestamps dupliqués par actif
+Ces contrôles permettent d’identifier d’éventuelles irrégularités tout en conservant les spécificités propres aux marchés (notamment les interruptions de cotation). Aucune correction intrusive (imputation ou interpolation) n’a été appliquée.
+Le jeu de données validé est ensuite enregistré sous une nouvelle version, processed2.0, qui constitue la base propre et cohérente pour les étapes suivantes du projet.
+---------------------
+processed2.0（clean data）
+Les résultats de validation montrent que le jeu de données est cohérent et conforme aux caractéristiques attendues des différents marchés. Les écarts temporels observés correspondent aux structures de cotation (marchés continus pour les cryptomonnaies, discontinuités pour les indices et actions), et sont donc conservés pour les étapes suivantes de modélisation.
+
+
+
+---------------------------
+
+Étape 2 — Agrégation temporelle des données
+
+Dans cette étape, les séries temporelles initialement disponibles à une fréquence de 5 minutes ont été agrégées en barres de 15 minutes afin de réduire le bruit de microstructure et d’obtenir une représentation temporelle plus adaptée à la modélisation.
+
+L’agrégation est réalisée indépendamment pour chaque actif, en respectant les règles standards de construction des données 
+Une attention particulière est portée à la préservation de la structure réelle des marchés : les écarts de cotation (gaps) ne sont pas comblés et aucune interpolation n’est effectuée. Les barres de 15 minutes sont uniquement construites à partir des observations effectivement disponibles, ce qui garantit l’absence de données artificielles.
+
+Le jeu de données ainsi obtenu constitue une base cohérente et homogène pour le calcul des indicateurs techniques et la modélisation ultérieure.
+----------------------------
+Conception expérimentale et extraction des variables
+
+Dans ce projet, nous adoptons une approche progressive visant à comparer plusieurs stratégies de modélisation pour la prévision du MACD. L’objectif est d’évaluer l’impact de différents niveaux d’information sur la qualité des prédictions, en construisant une série de modèles de complexité croissante.
+
+Dans un premier temps, un modèle de référence (baseline) est défini, consistant à prédire directement la série du MACD à partir de sa propre dynamique temporelle. Cette approche permet d’établir un niveau de performance minimal basé uniquement sur l’autocorrélation de la série.
+
+Ensuite, plusieurs modèles sont introduits afin d’enrichir progressivement l’information disponible :
+
+Un premier modèle repose sur les composantes du MACD, à savoir les moyennes mobiles exponentielles (EMA12 et EMA26), afin d’évaluer si la décomposition du signal améliore la capacité prédictive.
+
+Un second modèle complet combine composantes EMA, et régime, dans le but de capturer à la fois la dynamique interne, et le contexte de marché.
+
+Dans ce cadre, le jeu de données a été enrichi afin de fournir les variables nécessaires à ces différentes approches. À partir des prix de clôture, nous avons extrait :
+
+les moyennes mobiles exponentielles EMA(12) et EMA(26)
+le MACD, défini comme la différence entre ces deux composantes
+la ligne de signal (EMA du MACD)
+l’histogramme du MACD
+
+Ces variables constituent une représentation structurée de la dynamique du marché et serviront de base commune pour l’ensemble des modèles étudiés.
+
+----------------------------
+baseline macd solo (rslt in folder model1_arima)
+
+Analyse des résultats du modèle ARIMA par classe
+
+Les résultats obtenus montrent que la performance du modèle ARIMA dépend fortement de la classe d’actifs considérée. On observe notamment que les cryptomonnaies présentent les meilleures performances, avec une corrélation moyenne d’environ 0.58, tandis que les indices et le forex affichent des résultats plus modestes.
+
+Cette différence s’explique principalement par la structure des marchés. Les cryptomonnaies étant cotées en continu, elles présentent des séries temporelles plus régulières et mieux adaptées aux hypothèses du modèle ARIMA. À l’inverse, les indices et les actions sont soumis à des interruptions quotidiennes de cotation, ce qui introduit des discontinuités (gaps) qui dégradent la qualité de la modélisation.
+
+Par ailleurs, une hétérogénéité importante est observée au sein de certaines classes, en particulier pour les indices, où les performances varient fortement d’un actif à l’autre. Cela met en évidence une limite de l’approche par classe : l’hypothèse d’une dynamique commune au sein d’une même catégorie n’est pas toujours vérifiée.
+
+Enfin, bien que les corrélations soient parfois modestes, les scores de précision de tendance restent relativement élevés, suggérant que le modèle capture partiellement la direction des mouvements, sans pour autant modéliser correctement leur amplitude.
+--------------------------------------
+Modèle 1 — Prévision du MACD à partir des composantes EMA (rslt in folder model2_EMA)
+
+Dans cette seconde approche, nous cherchons à améliorer la modélisation en exploitant la structure interne du MACD. Plutôt que de prédire directement la série du MACD, nous utilisons ses composantes fondamentales, à savoir les moyennes mobiles exponentielles EMA(12) et EMA(26), comme variables explicatives.
+
+Afin de maintenir la cohérence avec le modèle de référence, cette approche est mise en œuvre selon une stratégie par classe d’actifs. Un modèle distinct est ainsi construit pour chaque catégorie (cryptomonnaies, forex, indices, actions), en combinant les observations issues des différents actifs appartenant à une même classe.
+
+Comparaison entre la prévision directe du MACD et l’approche structurelle
+
+Les résultats montrent que l’approche consistant à prédire directement le MACD à l’aide d’un modèle ARIMA reste globalement plus performante que l’approche structurelle basée sur la prévision des composantes EMA.
+
+Cependant, l’écart de performance demeure relativement modéré, ce qui indique que la modélisation des composantes fondamentales du MACD constitue une alternative viable. Cette approche présente notamment un avantage en termes de robustesse dans les marchés caractérisés par des discontinuités, où les performances du modèle ARIMA se dégradent.
+
+L’une des principales limites de l’approche structurelle réside dans la propagation des erreurs : la prévision du MACD dépend de deux estimations distinctes (EMA12 et EMA26), ce qui peut amplifier les erreurs finales.
+
+En revanche, cette méthode permet une interprétation plus fine des dynamiques sous-jacentes et constitue une base intéressante pour des modèles plus complexes.
+
+--------------------------------
+Modèle 2 baseline+régime(pour jump)(rslt in folder model3_regime)
+
+Choix entre ARIMAX et modèles à changement de régime
+
+Bien que les modèles de type Markov Switching permettent de capturer des changements de régime de manière endogène, leur estimation reste complexe et instable, en particulier sur des séries de taille limitée.
+
+Dans notre cas, l’origine des discontinuités étant directement liée à la structure des marchés (horaires de cotation), nous privilégions une approche plus simple et interprétable, en introduisant explicitement une variable de régime dans un modèle ARIMAX.
+
+Cette stratégie permet de mieux contrôler le comportement du modèle tout en conservant une bonne robustesse.
+
+
+Traitement des discontinuités dans les modèles supervisés
+
+Les résultats obtenus avec le modèle ARIMAX montrent que l’introduction d’une variable de régime simple ne permet pas d’améliorer significativement les performances. Cela s’explique par les limites des modèles linéaires, qui ne sont pas adaptés pour capturer des dynamiques complexes et non linéaires.
+
+Dans ce contexte, nous introduisons des modèles supervisés plus flexibles, intégrant explicitement des variables de régime. Cette approche permet de modéliser des comportements différents selon les conditions de marché, notamment en présence de sauts, et constitue une solution plus adaptée au traitement des discontinuités.
+---------------------------------
+Modèle 3 ML
+Analyse des modèles supervisés avancés
+
+Les résultats du modèle 4 montrent que l’ajout simultané de variables structurelles, temporelles et de régime ne permet pas d’améliorer significativement les performances par rapport au modèle ARIMA de référence.
+
+On observe notamment que le modèle Ridge, plus simple, présente des performances plus stables que le modèle XGBoost, qui souffre probablement d’un surapprentissage lié à la taille limitée des données et à la faible intensité du signal.
+
+Ces résultats suggèrent que, dans ce contexte, l’augmentation de la complexité du modèle ne se traduit pas nécessairement par une amélioration des performances, et que des modèles linéaires bien spécifiés peuvent rester compétitifs.
+--------------------------------
+conclusion pour parti MACD 
+Dans ce projet, nous avons étudié la prévision de l’indicateur MACD à partir de séries temporelles financières multi-actifs, en comparant plusieurs approches de modélisation allant des méthodes classiques de séries temporelles aux modèles supervisés.
+
+Dans un premier temps, l’analyse exploratoire des données a mis en évidence une structure globalement régulière, avec une très forte proportion d’observations espacées de manière constante (5 minutes). Les discontinuités, principalement liées aux fermetures de marché, ont été identifiées comme rares (de l’ordre de 1% des observations), bien que structurées.
+
+Sur le plan de la modélisation, les résultats montrent que les modèles ARIMA, qui capturent explicitement la dépendance temporelle, constituent une référence robuste et difficile à surpasser en termes de corrélation. Les approches basées uniquement sur les composantes structurelles (EMA) ou sur des reconstructions du MACD présentent des performances plus limitées, confirmant l’importance de la dynamique temporelle dans ce type de problème.
+
+L’introduction d’une variable de régime dans un cadre ARIMAX, visant à prendre en compte les sauts liés aux discontinuités de marché, n’a conduit qu’à des améliorations marginales. Ce résultat s’explique par la faible fréquence de ces événements, qui limite leur impact sur les métriques globales de performance.
+
+Enfin, les modèles supervisés combinant informations structurelles (EMA), temporelles (lags) et contextuelles (régime) n’ont pas permis d’améliorer significativement les résultats, malgré une plus grande flexibilité. En particulier, les modèles plus complexes tels que XGBoost se sont révélés instables, suggérant un risque de surapprentissage dans un contexte de données relativement limitées.
+
+Ces observations conduisent à deux conclusions principales. D’une part, la modélisation explicite de la dépendance temporelle reste un élément central pour la prévision du MACD（arima）. D’autre part, la difficulté à améliorer les performances ne provient pas uniquement du choix du modèle, mais également de la nature du signal lui-même, qui apparaît faiblement prédictible à court terme avec les informations disponibles.
+----------------------------------
+

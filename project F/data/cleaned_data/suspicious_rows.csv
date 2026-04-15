@@ -1,0 +1,1 @@
+issues,is_exact_duplicate,is_duplicate_timestamp,has_missing_required,is_invalid_date,is_ohlc_invalid,is_negative_volume,is_unknown_asset,asset_id,date,open,high,low,close,volume,asset_class
