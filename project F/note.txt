@@ -201,3 +201,102 @@ Enfin, les modèles supervisés combinant informations structurelles (EMA), temp
 Ces observations conduisent à deux conclusions principales. D’une part, la modélisation explicite de la dépendance temporelle reste un élément central pour la prévision du MACD（arima）. D’autre part, la difficulté à améliorer les performances ne provient pas uniquement du choix du modèle, mais également de la nature du signal lui-même, qui apparaît faiblement prédictible à court terme avec les informations disponibles.
 ----------------------------------
 
+
+part stoch
+
+
+1.Construction des variables Stochastiques
+
+Avant la modélisation, nous construisons les variables associées à l’indicateur Stochastique (14,3,5). Cette étape repose sur l’utilisation de fenêtres glissantes afin d’identifier les valeurs extrêmes du prix sur une période donnée.
+
+La composante %K est calculée en normalisant la position du prix de clôture par rapport à l’intervalle défini par le plus haut et le plus bas sur les 14 dernières observations. Cette composante est ensuite lissée par deux moyennes mobiles successives, de tailles 3 et 5, afin d’obtenir une version plus stable de l’indicateur.
+
+Ces variables constituent la base des modèles de prévision utilisés par la suite.
+----------------------------------
+
+Modèle de arima pour stoch
+
+Nous construisons un modèle ARIMA comme référence pour la prévision de la composante %K du Stochastique à un horizon de 15 pas.
+
+La modélisation est réalisée par classe d’actifs, en cohérence avec l’approche adoptée précédemment. Cette étape vise à évaluer dans quelle mesure la dépendance temporelle peut être exploitée pour un indicateur borné et fortement oscillant.
+
+Les performances obtenues permettront de juger de la pertinence des approches de séries temporelles pour ce type d’indicateur.
+
+resultat：
+
+Analyse du modèle ARIMA pour le Stochastique
+
+Les résultats montrent que le modèle ARIMA est inadapté à la prévision de l’indicateur Stochastique. En effet, les corrélations obtenues sont négatives pour l’ensemble des classes d’actifs, indiquant une incapacité du modèle à reproduire correctement la dynamique de la série.
+
+Ce phénomène s’explique par la nature même du Stochastique, qui est un indicateur borné et fortement oscillant. Contrairement au MACD, il ne présente pas de dépendance temporelle stable, mais plutôt un comportement de retour rapide vers une moyenne.
+
+Ainsi, le modèle ARIMA, fondé sur des hypothèses de linéarité et de dépendance temporelle, ne parvient pas à capturer ces propriétés, ce qui conduit à des prédictions peu fiables.
+
+----------------------------------------
+
+
+Modèle de retour à la moyenne par régime
+
+Afin de mieux capturer la dynamique du Stochastique, nous proposons un modèle basé sur le retour à la moyenne, dans lequel la force de rappel dépend du régime de l’indicateur.
+
+Trois régimes sont définis en fonction de la valeur du Stochastique : zone de survente, zone intermédiaire et zone de surachat. Le modèle suppose que la variation future dépend de l’écart à une valeur centrale, avec une intensité différente selon le régime.
+
+Cette approche permet de mieux représenter le comportement oscillant et borné de l’indicateur, en introduisant une structure simple mais adaptée aux propriétés du signal.
+
+Δstoch = α_regime * (μ - stoch_t) + ε
+
+stoch_k < 20        → regime = LOW（survente）
+20 ≤ stoch_k ≤ 80   → regime = MID（inter）
+stoch_k > 80        → regime = HIGH（surachat）
+
+Analyse du modèle de retour à la moyenne par régime
+
+Les résultats montrent que le modèle de retour à la moyenne par régime est plus cohérent avec la structure du Stochastique que le modèle ARIMA classique. En effet, contrairement à l’approche ARIMA, qui produisait des corrélations négatives pour l’ensemble des classes d’actifs, le modèle par régime permet d’obtenir des corrélations positives pour certaines classes, en particulier les cryptomonnaies et les actions.
+
+Ce résultat confirme que le Stochastique se comporte davantage comme un processus borné avec retour vers une valeur centrale que comme une série temporelle de type tendance. L’introduction de régimes permet ainsi de mieux représenter la dynamique du signal, en distinguant les zones de survente, de zone intermédiaire et de surachat.
+
+Cependant, malgré cette amélioration, les performances restent globalement modestes. Cela suggère que, si la structure de retour à la moyenne constitue une hypothèse plus pertinente, elle ne suffit pas à elle seule pour capturer toute la dynamique du Stochastique, notamment ses variations de court terme.
+
+
+----------------------------------------------
+
+Modèle XGBoost
+
+Afin de capturer des dynamiques non linéaires et des effets de court terme, nous utilisons un modèle XGBoost basé sur des variables de retard, des mesures de momentum et des indicateurs de régime.
+
+Cette approche permet d’intégrer à la fois la structure de retour à la moyenne et les variations locales du signal, ce qui est particulièrement adapté à la nature oscillante du Stochastique.
+
+
+Résultats du modèle XGBoost
+
+Les résultats obtenus avec le modèle XGBoost ne montrent pas d’amélioration significative par rapport aux approches précédentes. Bien que ce modèle soit capable de capturer des relations non linéaires, les performances restent globalement faibles en termes de corrélation.
+
+Ce résultat suggère que la difficulté de prédiction ne provient pas uniquement du choix du modèle, mais également des propriétés intrinsèques du Stochastique, qui apparaît faiblement prédictible à cet horizon.
+
+
+--------------------------------
+
+Modèle LSTM
+
+Analyse du modèle LSTM
+
+Les résultats obtenus avec le modèle LSTM ne montrent pas d’amélioration significative par rapport aux modèles précédents. Malgré sa capacité à modéliser des dépendances temporelles complexes, les performances restent globalement faibles et instables en termes de corrélation.
+
+Ce résultat confirme que la difficulté de prédiction du Stochastique ne provient pas uniquement du choix du modèle, mais des propriétés intrinsèques du signal, caractérisé par un comportement oscillant, borné et faiblement dépendant du passé.
+
+---------------------------------
+Conclusion — Étude du Stochastique (14,3,5)
+
+Dans cette partie, nous avons étudié la prévision de l’indicateur Stochastique (14,3,5) à un horizon de 15 pas, en mobilisant successivement des modèles de séries temporelles, des approches statistiques adaptées, ainsi que des méthodes d’apprentissage supervisé et profond.
+
+Les premiers résultats montrent que les modèles ARIMA sont inadaptés à cet indicateur, produisant des corrélations négatives pour l’ensemble des classes d’actifs. Cette contre-performance s’explique par l’inadéquation entre les hypothèses du modèle (linéarité, dépendance temporelle stable) et la nature du Stochastique, qui est un indicateur borné et fortement oscillant.
+
+Afin de mieux refléter ces propriétés, nous avons introduit un modèle de retour à la moyenne dépendant du régime. Cette approche permet d’obtenir des performances plus cohérentes, avec des corrélations positives pour certaines classes d’actifs, confirmant que le Stochastique se comporte comme un processus à retour vers une valeur centrale. Néanmoins, les performances restent globalement modestes, suggérant que cette structure ne suffit pas à capturer toute la dynamique du signal.
+
+Dans un second temps, nous avons exploré des modèles d’apprentissage supervisé (Ridge, XGBoost), en intégrant des variables de retard, des mesures de momentum et des indicateurs de régime. Malgré une plus grande flexibilité, ces modèles n’ont pas permis d’améliorer significativement les résultats.
+
+Enfin, l’utilisation d’un modèle séquentiel de type LSTM n’a pas non plus conduit à des gains substantiels, bien qu’il soit théoriquement capable de capturer des dépendances temporelles complexes.
+
+Ces observations conduisent à une conclusion essentielle : la difficulté de prédiction du Stochastique ne provient pas principalement du choix du modèle, mais des propriétés intrinsèques du signal lui-même. En effet, son comportement oscillant, borné et faiblement dépendant du passé limite fortement sa prédictibilité à cet horizon.
+
+Ainsi, contrairement au MACD, qui présente une structure temporelle exploitable, le Stochastique apparaît comme un indicateur dont la dynamique est essentiellement locale et peu informative pour la prévision. Ce résultat met en évidence l’importance d’adapter le choix des méthodes aux propriétés spécifiques des variables étudiées, et souligne les limites des approches prédictives dans certains contextes.
